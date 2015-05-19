@@ -1,0 +1,33 @@
+<html>
+<head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+</head>
+<body>
+        {% if error %}
+                <h2>Error!</h2>
+                <div> {{ error }} </div>
+        {% endif %}
+
+        {% if nc %}
+                <h2>New app created</h2>
+                <div>
+                Your new app has:
+                <ul>
+                        <li><b>Client ID:</b> {{ nc.client_id }}</li>
+                        <li><b>Client Secret:</b> {{nc.client_secret}} </li>
+                </ul>
+                Enjoy!
+                </div>
+        {% else %}
+        <h2> New App </h2>
+        <form method="POST" action="#">
+        <div>
+                Enter your App's name: <input type="text" name="name" required />
+                <br/>
+                and redirect URI: <input type="text" name="redirect_uri" required/>
+                <br/>
+                <button type="submit">Submit</button>
+        </div>
+        </form>
+        {% endif %}
+</body>
