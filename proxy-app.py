@@ -8,7 +8,7 @@
 ##############################################################################
 
 
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, make_response, jsonify
 import json
 import os
 import base64
@@ -16,10 +16,13 @@ import logging
 from urllib import urlencode
 import httplib2
 from xml.dom import minidom
+import time
+from collections import defaultdict
 
 from cas_settings import cas_settings
 
 log = None
+TOKEN_DURATION = int(3 * 3600) # say...
 
 def _make_random(rlen=24):
     """URL-friendly random numbers. Will have 8*3/4 entropy bits
@@ -133,10 +136,33 @@ class Clients(object):
 
 class Tokens(object):
     def __init__(self):
-        self._tokens_by_client = {}
+        self._tokens_by_client = defaultdict(list)
+        self._pending_tokens = {} # by code, can only be used once, not active yet
 
-    # TODO
+    def get_grant(self, client_id):
+        """Construct a new, pending, token
 
+            @return the 'code' to access this grant
+
+            This fn. *assumes* that `client_id` has already been checked
+        """
+        t = { 'client_id': client_id, 'token': _make_random(40),
+             'expires': time.time() + 600,
+             }
+        c = _make_random(48)
+        assert c not in self._pending_tokens, "Collision!"
+        self._pending_tokens[c] = t
+        return c
+
+
+    def set(self, token):
+        """ Register a token in set of active ones
+            
+            Token is one like in `get_grant()`
+        """
+        assert isinstance(token, dict), type(token)
+        assert 'client_id' in token
+        self._tokens_by_client[token['client_id']].append(token)
 
 # Flask part
 app = Flask(__name__)
@@ -224,7 +250,7 @@ def get_auth_done(client_id, state=None):
     """
 
     if client_id not in the_clients:
-        return render_template('broken_endpoint.html')
+        return make_response(render_template('broken_endpoint.html'),403)
 
     def _redir_response(**kwargs):
         uri = the_clients._clients[client_id]['redirect_uri']
@@ -244,7 +270,7 @@ def get_auth_done(client_id, state=None):
         return _redir_response(error='access_denied')
 
     try:
-        service_uri = cas_settings['our_uri'] + '/' + request.args['client_id']
+        service_uri = cas_settings['our_uri'] + '/' + client_id
         if state:
             service_uri += '/' + state
 
@@ -270,8 +296,8 @@ def get_auth_done(client_id, state=None):
             successNode = response.getElementsByTagName('cas:authenticationSuccess')
             if successNode:
                 log.debug('Successfully retrieved access token from %s/serviceValidate', cas_settings['uri'])
-                # TODO: cache the ticket!
-                return _redir_response(code='...') # *-*
+                # code response, p 4.1.2 of RFC6749
+                return _redir_response(code=the_tokens.get_grant(client_id))
             else:
                 return _redir_response(error='temporarily_unavailable')
 
@@ -281,8 +307,54 @@ def get_auth_done(client_id, state=None):
         log.exception("Cannot get credentials:")
         return _redir_response(error='server_error')
 
-# TODO:
-# token endpoint, exchanges code for *our* token
+@app.route('/token', methods=['POST'])
+def get_token():
+    """token endpoint, exchanges code for *our* token
+    
+        This request /must/ be initiated by client, bearing client_id+client_secret
+
+        See RFC6749 s 4.1.3
+    """
+    def _error_52(error, **kwargs):
+        """Error response, like in RFC s5.2
+        """
+        r = jsonify(error=error, **kwargs)
+        r.headers['Cache-Control'] = 'no-store'
+        r.headers['Pragma'] = 'no-cache'
+        r.status_code = 400
+        return r
+
+    client_name = the_clients.check_client(request.form['client_id'], request.form.get('client_secret', False))
+    if not client_name:
+        return _error_52('invalid_client')
+    log.debug("Get request for %s", client_name)
+    if request.form['redirect_uri'] != the_clients._clients[request.form['client_id']]['redirect_uri']:
+        log.warning("redirect_uri mismatch for %s: %s", client_name, request.form['redirect_uri'])
+        return _error_52('invalid_grant')
+    
+    if request.form.get('grant_type', False) != 'authorization_code' \
+                or not request.form.get('code', False):
+        return _error_52('invalid_request')
+    
+    t = the_tokens._pending_tokens.pop(request.form['code'], False)
+    if not t:
+        # no such code
+        return _error_52('invalid_grant')
+    elif t['expires'] <= time.time():
+        #  expired code
+        return _error_52('invalid_grant')
+    elif t['client_id'] != request.form['client_id']:
+        #oops, wrong client!
+        return _error_52('invalid_grant')
+    else:
+        # ok, grant
+        t['expires'] = time.time() + TOKEN_DURATION
+        the_tokens.set(t)
+        r = jsonify(access_token=t['token'], token_type='bearer',
+                    expires_in=TOKEN_DURATION, ) # scope='play-around')
+        r.headers['Cache-Control'] = 'no-store'
+        r.headers['Pragma'] = 'no-cache'
+        return r
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')
