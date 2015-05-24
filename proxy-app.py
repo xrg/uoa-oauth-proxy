@@ -18,11 +18,22 @@ import httplib2
 from xml.dom import minidom
 import time
 from collections import defaultdict
+import jsonrpclib
+
 
 from cas_settings import cas_settings
 
 log = None
 TOKEN_DURATION = int(3 * 3600) # say...
+
+class RegAPI(object):
+    def __init__(self):
+        from regapi_settings import regapi_settings
+        self.server = jsonrpclib.Server(regapi_settings['endpoint'])
+
+    def lessons(self, year, username):
+        return self.server.getLessons(year, username)
+
 
 def _make_random(rlen=24):
     """URL-friendly random numbers. Will have 8*3/4 entropy bits
@@ -170,6 +181,10 @@ app.debug = True
 log = app.logger
 the_clients = Clients()
 the_tokens = Tokens()
+
+@app.route('/regapitest')
+def regapitest():
+    return RegAPI().lessons(2014, 'foo')
 
 @app.route('/')
 def go_away():

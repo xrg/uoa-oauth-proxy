@@ -1,0 +1,3 @@
+regapi_settings = {
+    "endpoint": 'http://localhost:8080'
+}
