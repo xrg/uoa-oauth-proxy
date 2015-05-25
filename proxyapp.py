@@ -14,6 +14,7 @@ import json
 import os
 import base64
 import logging
+import six
 from urllib import urlencode
 import httplib2
 from xml.dom import minidom
@@ -127,6 +128,10 @@ class Clients(object):
         log.debug("Cannot verify client %s to %s", client_id, redirect_uri)
         return False
 
+    def __iter__(self):
+        self._load()
+        return six.itervalues(self._clients)
+
     def new_client(self, name, redirect_uri):
         """Generates random ID+secret, saves /disabled/ client
         """
@@ -196,6 +201,12 @@ def regapitest():
 @proxybp.route('/')
 def go_away():
     return 'Go away!'
+
+@proxybp.route('/admin/clients')
+def show_clients():
+    """ Simple list of clients
+    """
+    return render_template('client_list.html', clients=the_clients)
 
 @proxybp.route('/admin/new-client', methods=['GET', 'POST'])
 def get_new_client():

@@ -1,0 +1,18 @@
+
+<html>
+<head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+</head>
+<body>
+        <h2> Client list </h2>
+        {% for client in clients %}
+        <div>
+           <h4>App name<dt><dd>{{ client.name }}</h4>
+           <dl>
+                <dt>ID<dt><dd>{{ client.client_id }}</dd>
+                <dt>enabled<dt><dd>{{ client.enabled }}</dd>
+                <dt>redirect URI<dt><dd>{{ client.redirect_uri }}</dd>
+	   </dl>
+        </div>
+        {% endfor %}
+</body>
