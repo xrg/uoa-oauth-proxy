@@ -32,7 +32,7 @@ class RegAPI(object):
         self.server = jsonrpclib.Server(regapi_settings['endpoint'])
 
     def lessons(self, year, username):
-        return self.server.getLessons(year, username)
+        return self.server.student.getLessons(year, username)
 
 
 def _make_random(rlen=24):
