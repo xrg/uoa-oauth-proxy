@@ -18,19 +18,18 @@ app.debug = True
 app.config['APPLICATION_ROOT'] = regapi_settings.get('url_prefix', '/regapi')
 app.config['SERVER_NAME'] = cas_settings['server_name']
 log = app.logger
-log.error("LALA")
 
 regapibp = Blueprint('regapi', __name__, template_folder='templates')
 
 @regapibp.route('/')
 def index():
-    log.debug("foo")
     return "Hai there"
 
 @regapibp.route('/lessons/<year>/<user>')
 def get_lessons(year, user):
     lessons = RegAPI().lessons(year, user)
-    return ",".join(repr(lessons))
+    log.debug("retrieveing lessons for %s", user)
+    return ",".join(lessons)
 app.register_blueprint(regapibp, url_prefix=app.config['APPLICATION_ROOT'])
 
 from werkzeug.debug import DebuggedApplication
