@@ -27,9 +27,8 @@ def index():
 
 @regapibp.route('/lessons/<year>/<user>')
 def get_lessons(year, user):
-    lessons = RegAPI().lessons(year, user)
-    log.debug("retrieveing lessons for %s", user)
-    return ",".join(lessons)
+    log.debug("retrieving lessons for %s", user)
+    return render_template('lesson_list.html', lessons=RegAPI().lessons(year, user), user=user, year=year)
 app.register_blueprint(regapibp, url_prefix=app.config['APPLICATION_ROOT'])
 
 from werkzeug.debug import DebuggedApplication
