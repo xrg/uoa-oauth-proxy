@@ -179,7 +179,7 @@ proxybp = Blueprint('oauth', __name__, template_folder='templates')
 
 app = Flask(__name__)
 app.debug = True
-app.config['APPLICATION_ROOT'] = 'oauth/'
+app.config['APPLICATION_ROOT'] = cas_settings['url_prefix']
 app.config['SERVER_NAME'] = cas_settings['server_name']
 log = app.logger
 the_clients = Clients()
