@@ -20,21 +20,12 @@ import httplib2
 from xml.dom import minidom
 import time
 from collections import defaultdict
-import jsonrpclib
 
 
 from cas_settings import cas_settings
 
 log = None
 TOKEN_DURATION = int(3 * 3600) # say...
-
-class RegAPI(object):
-    def __init__(self):
-        from regapi_settings import regapi_settings
-        self.server = jsonrpclib.Server(regapi_settings['endpoint'])
-
-    def lessons(self, year, username):
-        return self.server.student.getLessons(year, username)
 
 
 def _make_random(rlen=24):
@@ -194,10 +185,6 @@ log = app.logger
 the_clients = Clients()
 the_tokens = Tokens()
 
-@proxybp.route('/regapitest')
-def regapitest():
-    return RegAPI().lessons(2014, 'foo')
-
 @proxybp.route('/')
 def go_away():
     return 'Go away!'
@@ -271,8 +258,6 @@ def get_authorize():
     # Note that we need to set the cookie and redirect the client
     # to CAS, asap. Not all browsers work with 302+cookie:
     # http://blog.dubbelboer.com/2012/11/25/302-cookie.html
-
-
 
 @proxybp.route('/auth_done/<client_id>')
 @proxybp.route('/auth_done/<client_id>/<state>')
