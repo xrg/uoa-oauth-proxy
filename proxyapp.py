@@ -8,7 +8,8 @@
 ##############################################################################
 
 
-from flask import Flask, render_template, request, redirect, make_response, jsonify
+from flask import (Flask, render_template, request, redirect, make_response,
+                   jsonify, Blueprint, url_for)
 import json
 import os
 import base64
@@ -50,6 +51,7 @@ class Clients(object):
     """
     def __init__(self):
         self._clients = {} # indexed by client-id
+        self._dbpath = cas_settings.get('dbpath', 'data/clients.json')
 
 
     def _save(self):
@@ -57,7 +59,7 @@ class Clients(object):
 
             We use indent for readability. We store as a list, not a dict.
         """
-        fp = open("clients.json", 'wb')
+        fp = open(self._dbpath, 'wb')
         json.dump(self._clients.values(), fp, indent=2)
         fp.close()
         log.info("Clients saved to \"clients.json\" ")
@@ -66,7 +68,7 @@ class Clients(object):
         """Load them from a JSON file
         """
         try:
-            fp = open("clients.json", "rb")
+            fp = open(self._dbpath, "rb")
             clients = json.load(fp)
             fp.close()
             self._clients.clear()
@@ -99,6 +101,7 @@ class Clients(object):
         if not self._clients:
             self._load()
         c = self._clients.get(client_id, None)
+        log.debug("client %s", client_id)
         if c and (c.get('client_secret', False) == client_secret) and c.get('enabled', False):
 
             return c['name'] or True # always a truthy value
@@ -176,21 +179,25 @@ class Tokens(object):
         self._tokens_by_client[token['client_id']].append(token)
 
 # Flask part
+proxybp = Blueprint('oauth', __name__, template_folder='templates')
+
 app = Flask(__name__)
 app.debug = True
+app.config['APPLICATION_ROOT'] = 'oauth/'
+app.config['SERVER_NAME'] = cas_settings['server_name']
 log = app.logger
 the_clients = Clients()
 the_tokens = Tokens()
 
-@app.route('/regapitest')
+@proxybp.route('/regapitest')
 def regapitest():
     return RegAPI().lessons(2014, 'foo')
 
-@app.route('/')
+@proxybp.route('/')
 def go_away():
     return 'Go away!'
 
-@app.route('/admin/new-client', methods=['GET', 'POST'])
+@proxybp.route('/admin/new-client', methods=['GET', 'POST'])
 def get_new_client():
     """ Simple POST form for a new client
     """
@@ -205,7 +212,7 @@ def get_new_client():
         nc = False
     return render_template('new_client.html', nc=nc, error=error)
 
-@app.route('/authorize', methods=['GET'])
+@proxybp.route('/authorize', methods=['GET'])
 def get_authorize():
     """Parse a OAuth2.0 authorize request, ask CAS for authorization
 
@@ -239,7 +246,7 @@ def get_authorize():
     if request.args.get('response_type',False) != 'code':
         return _redir_response(error='invalid_request')
 
-    service_uri = cas_settings['our_uri'] + '/' + request.args['client_id']
+    service_uri = url_for('.get_auth_done', client_id=request.args['client_id'], _external=True)
     if request.args.get('state', False):
         service_uri += '/' + request.args['state']
     login_uri = cas_settings['uri'] + '/login?' + urlencode({ 'service': service_uri, })
@@ -256,8 +263,8 @@ def get_authorize():
 
 
 
-@app.route('/auth_done/<client_id>')
-@app.route('/auth_done/<client_id>/<state>')
+@proxybp.route('/auth_done/<client_id>')
+@proxybp.route('/auth_done/<client_id>/<state>')
 def get_auth_done(client_id, state=None):
     """ This is where CAS should send our client after its login is verified
 
@@ -285,7 +292,7 @@ def get_auth_done(client_id, state=None):
         return _redir_response(error='access_denied')
 
     try:
-        service_uri = cas_settings['our_uri'] + '/' + client_id
+        service_uri = url_for('.get_auth_done', client_id=client_id, _external=True)
         if state:
             service_uri += '/' + state
 
@@ -295,7 +302,7 @@ def get_auth_done(client_id, state=None):
                     'ticket': request.args['ticket'],
                     })
 
-        http = httplib2.Http()
+        http = httplib2.Http(disable_ssl_certificate_validation=True)
         # Keep this commented, it would leak the secret key in production!
         # log.debug("Exchange code for credentials through: %s", url)
         resp, content = http.request(url, method='GET')
@@ -322,7 +329,7 @@ def get_auth_done(client_id, state=None):
         log.exception("Cannot get credentials:")
         return _redir_response(error='server_error')
 
-@app.route('/token', methods=['POST'])
+@proxybp.route('/token', methods=['POST'])
 def get_token():
     """token endpoint, exchanges code for *our* token
     
@@ -370,6 +377,9 @@ def get_token():
         r.headers['Cache-Control'] = 'no-store'
         r.headers['Pragma'] = 'no-cache'
         return r
+
+app.register_blueprint(proxybp, url_prefix=cas_settings.get('url_prefix', '/oauth'))
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')

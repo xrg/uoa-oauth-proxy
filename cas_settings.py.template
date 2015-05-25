@@ -1,6 +1,8 @@
 cas_settings = {
         'uri': 'https://sso-server.example.com/',
-        'our_uri': 'https://foo.bar/auth_done',
+        'server_name': 'foo.bar',
         'client_key': 'the-key' ,
-        'client_secret': '12345'
+        'client_secret': '12345',
+        'dbpath': '/path/to/data/clients.json',
+        'url_prefix': '/oauth'
 }
