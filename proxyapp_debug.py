@@ -1,3 +1,3 @@
 from werkzeug.debug import DebuggedApplication
-from proxy-app import app
+from proxyapp import app
 app = DebuggedApplication(app, evalex=True)
