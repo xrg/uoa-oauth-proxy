@@ -147,8 +147,8 @@ class Clients(object):
 
 class Tokens(object):
     def __init__(self):
-        self._tokens_by_client = defaultdict(list)
         self._pending_tokens = {} # by code, can only be used once, not active yet
+        self._active_tokens = {} # all in same flat dict
 
     def get_grant(self, client_id, **args):
         """Construct a new, pending, token
@@ -163,6 +163,7 @@ class Tokens(object):
              }
         c = _make_random(48)
         assert c not in self._pending_tokens, "Collision!"
+        assert c not in self._active_tokens, "Collision"
         self._pending_tokens[c] = t
         return c
 
@@ -174,7 +175,10 @@ class Tokens(object):
         """
         assert isinstance(token, dict), type(token)
         assert 'client_id' in token
-        self._tokens_by_client[token['client_id']].append(token)
+        self._active_tokens[token['token']] = token
+
+    def find(self, token):
+        return self._active_tokens.get(token, False)
 
 # Flask part
 proxybp = Blueprint('oauth', __name__, template_folder='templates')
