@@ -387,6 +387,32 @@ def get_token():
         r.headers['Pragma'] = 'no-cache'
         return r
 
+
+@proxybp.route('/token-validate', methods=['POST'])
+def get_token_validate():
+    """Retrieves/validates token from any registered client
+    """
+    client_name = the_clients.check_client(request.form['client_id'], request.form.get('client_secret', False))
+    if not client_name:
+        return _error_52('invalid_client')
+    
+    token = the_tokens.find(request.form['access_token'])
+    if not token:
+        log.info("bad token:%s", request.form['access_token'])
+        log.info("All tokens: %r", the_tokens._active_tokens.keys())
+        return _error_52('bad_token')
+
+    log.debug("Token retrieved: %r", token)
+    if token['expires'] < time.time():
+        return _error_52('token_expired')
+    else:
+        r = jsonify(access_token=token['token'],
+                    expires_in=token['expires'] - time.time(),
+                    args=token['args'])
+        r.headers['Cache-Control'] = 'no-store'
+        r.headers['Pragma'] = 'no-cache'
+        return r
+
 app.register_blueprint(proxybp, url_prefix=cas_settings.get('url_prefix', '/oauth'))
 
 
