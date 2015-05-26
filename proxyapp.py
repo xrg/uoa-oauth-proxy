@@ -44,7 +44,7 @@ class Clients(object):
     """
     def __init__(self):
         self._clients = {} # indexed by client-id
-        self._dbpath = cas_settings.get('dbpath', 'data/clients.json')
+        self._dbpath = cas_settings.get('dbpath', 'clients.json')
 
 
     def _save(self):
