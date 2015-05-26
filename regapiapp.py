@@ -106,12 +106,15 @@ log = app.logger
 
 regapibp = Blueprint('regapi', __name__, template_folder='templates')
 
+tokens = TokenCache(regapi_settings)
+
 @regapibp.route('/')
 def index():
     return "Hai there"
 
 @regapibp.route('/lessons/<year>/<user>')
-def get_lessons(year, user):
+@check_same_user(tokens)
+def get_lessons(user, year):
     log.debug("retrieving lessons for %s", user)
     return render_template('lesson_list.html', lessons=RegAPI().lessons(year, user), user=user, year=year)
 app.register_blueprint(regapibp, url_prefix=app.config['APPLICATION_ROOT'])
