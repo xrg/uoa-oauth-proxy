@@ -1,9 +1,11 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*
+
 from flask import (Flask, render_template, request, redirect, make_response,
                    jsonify, Blueprint, url_for)
 import jsonrpclib
-from proxyapp import app as proxyapp
 from regapi_settings import regapi_settings
-from cas_settings import cas_settings
+#from cas_settings import cas_settings
 
 class RegAPI(object):
     def __init__(self):
@@ -16,7 +18,7 @@ class RegAPI(object):
 app = Flask(__name__)
 app.debug = True
 app.config['APPLICATION_ROOT'] = regapi_settings.get('url_prefix', '/regapi')
-app.config['SERVER_NAME'] = cas_settings['server_name']
+# app.config['SERVER_NAME'] = cas_settings['server_name']
 log = app.logger
 
 regapibp = Blueprint('regapi', __name__, template_folder='templates')
@@ -33,3 +35,8 @@ app.register_blueprint(regapibp, url_prefix=app.config['APPLICATION_ROOT'])
 
 from werkzeug.debug import DebuggedApplication
 debug_app = DebuggedApplication(app, evalex=True)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')
+
+#eof
