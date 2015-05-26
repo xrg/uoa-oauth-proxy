@@ -332,6 +332,15 @@ def get_auth_done(client_id, state=None):
         log.exception("Cannot get credentials:")
         return _redir_response(error='server_error')
 
+def _error_52(error, **kwargs):
+    """Error response, like in RFC s5.2
+    """
+    r = jsonify(error=error, **kwargs)
+    r.headers['Cache-Control'] = 'no-cache'
+    r.headers['Pragma'] = 'no-cache'
+    r.status_code = 400
+    return r
+
 @proxybp.route('/token', methods=['POST'])
 def get_token():
     """token endpoint, exchanges code for *our* token
@@ -340,14 +349,7 @@ def get_token():
 
         See RFC6749 s 4.1.3
     """
-    def _error_52(error, **kwargs):
-        """Error response, like in RFC s5.2
-        """
-        r = jsonify(error=error, **kwargs)
-        r.headers['Cache-Control'] = 'no-store'
-        r.headers['Pragma'] = 'no-cache'
-        r.status_code = 400
-        return r
+
 
     client_name = the_clients.check_client(request.form['client_id'], request.form.get('client_secret', False))
     if not client_name:
