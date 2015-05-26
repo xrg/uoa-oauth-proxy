@@ -20,6 +20,7 @@ import httplib2
 from xml.dom import minidom
 import time
 from collections import defaultdict
+import jwt_utils
 
 
 from cas_settings import cas_settings
@@ -149,7 +150,7 @@ class Tokens(object):
         self._tokens_by_client = defaultdict(list)
         self._pending_tokens = {} # by code, can only be used once, not active yet
 
-    def get_grant(self, client_id):
+    def get_grant(self, client_id, **args):
         """Construct a new, pending, token
 
             @return the 'code' to access this grant
@@ -158,6 +159,7 @@ class Tokens(object):
         """
         t = { 'client_id': client_id, 'token': _make_random(40),
              'expires': time.time() + 600,
+             'args': args
              }
         c = _make_random(48)
         assert c not in self._pending_tokens, "Collision!"
@@ -314,8 +316,9 @@ def get_auth_done(client_id, state=None):
             successNode = response.getElementsByTagName('cas:authenticationSuccess')
             if successNode:
                 log.debug('Successfully retrieved access token from %s/serviceValidate', cas_settings['uri'])
+                user = successNode[0].getElementsByTagName('cas:user')[0].firstChild.nodeValue
                 # code response, p 4.1.2 of RFC6749
-                return _redir_response(code=the_tokens.get_grant(client_id))
+                return _redir_response(code=the_tokens.get_grant(client_id, user=user))
             else:
                 return _redir_response(error='temporarily_unavailable')
 
@@ -368,8 +371,12 @@ def get_token():
         # ok, grant
         t['expires'] = time.time() + TOKEN_DURATION
         the_tokens.set(t)
+        jwpayload = { 'iss': 'funhub.gunet.gr' }
+        jwpayload.update(t.get('args', {}))
         r = jsonify(access_token=t['token'], token_type='bearer',
-                    expires_in=TOKEN_DURATION, ) # scope='play-around')
+                    expires_in=TOKEN_DURATION, scope='play-around',
+                    id_token = jwt_utils.make_unsigned_jwt( jwpayload)
+                    )
         r.headers['Cache-Control'] = 'no-store'
         r.headers['Pragma'] = 'no-cache'
         return r
