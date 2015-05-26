@@ -1,3 +1,6 @@
 regapi_settings = {
-    "endpoint": 'http://localhost:8080'
+    "endpoint": 'http://localhost:8080',
+    "oauth_uri": 'https://example.com/', # URI for checking OAuth access_token
+    "client_id": '', # OAuth client ID, unique to this RegApi
+    "client_secret": '',
 }
